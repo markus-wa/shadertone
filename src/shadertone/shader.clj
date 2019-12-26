@@ -136,7 +136,7 @@
   [locals filename]
   (let [{:keys [tex-types]} @locals
         ;;file-str (slurp filename)
-        file-str (str "#version 120\n"
+        file-str (str "#version 130\n"
                       "uniform vec3      iResolution;\n"
                       "uniform float     iGlobalTime;\n"
                       "uniform float     iChannelTime[4];\n"
@@ -231,7 +231,7 @@
            :vertices-count vertices-count)))
 
 (def vs-shader
-  (str "#version 120\n"
+  (str "#version 130\n"
        "void main(void) {\n"
        "    gl_Position = gl_Vertex;\n"
        "}\n"))

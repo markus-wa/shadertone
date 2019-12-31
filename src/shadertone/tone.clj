@@ -25,7 +25,7 @@
 ;; ----------------------------------------------------------------------
 ;; Grab Waveform & FFT data and send it to the iChannel[0] texture.
 ;; data capture fns cribbed from overtone/gui/scope.clj
-(defonce WAVE-BUF-SIZE 4096) ; stick to powers of 2 for fft and GL
+(defonce WAVE-BUF-SIZE 1024) ; stick to powers of 2 for fft and GL
 (defonce WAVE-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
 (defonce FFTWAVE-BUF-SIZE (* 2 WAVE-BUF-SIZE))
 (defonce init-wave-array (float-array (repeat WAVE-BUF-SIZE 0.0)))

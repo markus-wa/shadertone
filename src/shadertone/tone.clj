@@ -25,7 +25,7 @@
 ;; ----------------------------------------------------------------------
 ;; Grab Waveform & FFT data and send it to the iChannel[0] texture.
 ;; data capture fns cribbed from overtone/gui/scope.clj
-(defonce WAVE-BUF-SIZE 1024) ; stick to powers of 2 for fft and GL
+(defonce WAVE-BUF-SIZE 512) ; stick to powers of 2 for fft and GL
 (defonce WAVE-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
 (defonce FFTWAVE-BUF-SIZE (* 2 WAVE-BUF-SIZE))
 (defonce init-wave-array (float-array (repeat WAVE-BUF-SIZE 0.0)))
@@ -72,24 +72,29 @@
 ;;
 ;; http://www.physik.uni-wuerzburg.de/~praktiku/Anleitung/Fremde/ANO14.pdf
 (defsynth bus-freqs->buf
-  [in-bus 0 scope-buf 1 fft-buf-size WAVE-BUF-SIZE-2X rate 2]
+  [in-bus 0 scope-buf 1 fft-buf-size WAVE-BUF-SIZE-2X rate 2 db-factor 0.02]
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
         ;; drop DC & nyquist samples
         n-samples (* 0.5 (- (buf-samples:ir fft-buf) 2))
         signal    (in in-bus 1)
         ;; found 0.5 window gave less periodic noise
-        freqs     (fft fft-buf signal 0.5 HANN)
+        freqs     (fft fft-buf signal 0.75 HANN)
+        freqs     (pv-mag-smear freqs 1)
+        ;freqs     (pv-mag-smear fft-buf 1)
+
         ;; indexer = 2, 4, 6, ..., N-4, N-2
         indexer   (+ n-samples 2
                      (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
                         n-samples))
         indexer   (round indexer 2) ;; always point to the real sample
         ;; convert real,imag pairs to magnitude
-        s0        (buf-rd 1 fft-buf indexer 1 1)
-        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
-        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))]
-    (record-buf lin-mag scope-buf)))
+        ;s0        (buf-rd 1 fft-buf indexer 1 1)
+        ;s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
+        ;lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))
+        src       (buf-rd 1 fft-buf indexer 1 1)
+        freq-vals (+ 1 (* db-factor (ampdb (* src 0.00285))))]
+    (record-buf freq-vals scope-buf)))
 
 (defonce fft-bus-synth
   (bus-freqs->buf [:after (foundation-monitor-group)] 0 fft-buf))

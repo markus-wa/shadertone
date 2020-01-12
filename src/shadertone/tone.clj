@@ -37,10 +37,33 @@
 ;; and use that FloatBuffer for texturing
 (defonce fftwave-tex-id (atom 0))
 (defonce fftwave-tex-num (atom 0))
-(defonce fftwave-float-buf (-> ^FloatBuffer (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
+(defonce fftwave-float-buf1 (-> ^FloatBuffer (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
                                (.put ^floats init-fft-array)
                                (.put ^floats init-wave-array)
                                (.flip)))
+(defonce fftwave-float-buf2 (-> ^FloatBuffer (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
+                               (.put ^floats init-fft-array)
+                               (.put ^floats init-wave-array)
+                               (.flip)))
+
+(def fftwave-buf1-active? (atom true))
+
+(defn- fftwave-float-buf
+  "Returns the active or inactive fftwave-float-buf (double-buffered)"
+  [active]
+  (if (= @fftwave-buf1-active? active)
+    fftwave-float-buf1
+    fftwave-float-buf2))
+
+(defn- fftwave-float-buf-active
+  "Returns the active fftwave-float-buf (double-buffered)"
+  []
+  (fftwave-float-buf true))
+
+(defn- fftwave-float-buf-inactive
+  "Returns the inactive fftwave-float-buf (double-buffered)"
+  []
+  (fftwave-float-buf false))
 
 (defonce wave-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 wave-buf))
 
@@ -130,21 +153,16 @@
                          0 ARBTextureRg/GL_R32F
                          ^Integer WAVE-BUF-SIZE
                          2 0 GL11/GL_RED GL11/GL_FLOAT
-                         ^FloatBuffer fftwave-float-buf)
+                         ^FloatBuffer (fftwave-float-buf-active))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D 0))
     :pre-draw ;; grab the data and put it in the texture for drawing.
     (do
-      (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
-        (-> ^FloatBuffer fftwave-float-buf
-            (.put ^floats (buffer-data-read fft-buf))
-            (.put ^floats (buffer-data-read wave-buf))
-            (.flip)))
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D @fftwave-tex-id)
       (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 ARBTextureRg/GL_R32F
                          ^Integer WAVE-BUF-SIZE
                          2 0 GL11/GL_RED GL11/GL_FLOAT
-                         ^FloatBuffer fftwave-float-buf))
+                         ^FloatBuffer (fftwave-float-buf-active)))
     :post-draw ;; unbind the texture
     (do
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
@@ -216,6 +234,18 @@
     )
   (tone-fftwave-fn dispatch pgm-id))
 
+(defn- data-reader
+  "Continuously reads waveform and FFT data from SC"
+  []
+  (while true
+    ;(time
+    (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
+      (-> ^FloatBuffer (fftwave-float-buf-inactive)
+          (.put ^floats (buffer-data-read fft-buf))
+          (.put ^floats (buffer-data-read wave-buf))
+          (.flip)))
+    (swap! fftwave-buf1-active? (fn [active?] (not active?)))));)
+
 ;; ======================================================================
 ;; Public API
 (defn start
@@ -235,6 +265,8 @@
                                          (atom {:synth voltap-synth
                                                 :tap   "system-vol"})})]
     (reset! tone-user-data user-data)
+    (.start (Thread.
+              (fn [] (data-reader))))
     (s/start shader-filename-or-str-atom
              :width      width
              :height     height

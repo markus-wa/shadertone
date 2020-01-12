@@ -551,6 +551,7 @@
 
 (defn- draw
   [locals]
+  ;(time
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
                 i-date-loc
@@ -585,8 +586,9 @@
 
     (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
 
+    ;(time; 40 ms if wave-buf-size <= 512)
     (when user-fn
-      (user-fn :pre-draw pgm-id))
+      (user-fn :pre-draw pgm-id));)
 
     ;; activate textures
     (dotimes [i (count tex-ids)]
@@ -663,7 +665,7 @@
                         GL11/GL_RGB GL11/GL_UNSIGNED_BYTE
                         ^ByteBuffer pixel-read-data)
       (except-gl-errors "@ draw after pixel read")
-      (reset! pixel-value (get-pixel-value ^ByteBuffer pixel-read-data)))))
+      (reset! pixel-value (get-pixel-value ^ByteBuffer pixel-read-data)))));)
 
 (defn- update-and-draw
   [locals]

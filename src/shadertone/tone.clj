@@ -99,17 +99,17 @@
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
         ;; drop DC & nyquist samples
-        n-samples (* 0.5 (- (buf-samples:ir fft-buf) 2))
-        signal    (in in-bus 1)
+        n-samples (/ (- (buf-samples:ir fft-buf) 2) 2)
+        signal    (in in-bus)
         ;; found 0.5 window gave less periodic noise
-        freqs     (fft fft-buf signal 0.75 HANN)
-        freqs     (pv-mag-smear freqs 1)
-        ;freqs     (pv-mag-smear fft-buf 1)
+        chain     (fft fft-buf signal 0.75 HANN)
+        chain     (pv-mag-smear chain 1)
 
         ;; indexer = 2, 4, 6, ..., N-4, N-2
-        indexer   (+ n-samples 2
-                     (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
-                        n-samples))
+        ;phasor    (lf-saw (/ rate (buf-dur:ir fft-buf)) phase n-samples (+ n-samples 2))
+        ;phasor    (round phasor 2)
+        indexer   (lf-saw (/ rate (buf-dur:ir fft-buf)) phase)
+        indexer   (+ n-samples 2 (* indexer n-samples)) ; muladd
         indexer   (round indexer 2) ;; always point to the real sample
         ;; convert real,imag pairs to magnitude
         ;s0        (buf-rd 1 fft-buf indexer 1 1)
@@ -234,16 +234,19 @@
     )
   (tone-fftwave-fn dispatch pgm-id))
 
+;; FIXME: stop thread on t/stop
 (defn- data-reader
   "Continuously reads waveform and FFT data from SC"
   []
   (while true
-    ;(time
+    ;(time ;40 ms
+    ;(println (.get (fftwave-float-buf-inactive) 0) (.get (fftwave-float-buf-inactive) 64) (.get (fftwave-float-buf-inactive) 128))
     (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
       (-> ^FloatBuffer (fftwave-float-buf-inactive)
           (.put ^floats (buffer-data-read fft-buf))
           (.put ^floats (buffer-data-read wave-buf))
           (.flip)))
+    ; TODO: ftt-buf-ring + wave-buf-ring
     (swap! fftwave-buf1-active? (fn [active?] (not active?)))));)
 
 ;; ======================================================================

@@ -94,21 +94,26 @@
         ;; convert real,imag pairs to magnitude
 
         s0        (buf-rd 1 fft-buf indexer 1 1)
-        s0 (/ s0 480)
-        ;s0 (/ s0 512)
-        lin-mag s0
+        s0 (/ s0 400)
+;        s0 (/ s0 512)
+;        lin-mag s0
 ;        s0        (* 0.285 s0)
 ;        s0        (+ 0 (* 0.02 (ampdb s0)))
         s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
 ;        s1 (* 0.0285 s1)
-        s1 (/ s0 480)
-        ;s1 (/ s0 512)
+        s1 (/ s0 400)
+;        s1 (/ s0 512)
+;        _ (spit "test" s0 s1)
         lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))
+       ;lin-mag   (/ lin-mag 512)
         lin-mag   (pow 10.0 (/ (log10 lin-mag) 3.322))
+        lin-mag   (* 10/9 (- lin-mag 0.1))
+       ; ;lin-mag   (/ lin-mag 8)
         lin-mag   (sqrt lin-mag)
-        lin-mag   (- lin-mag 0.1)
-        lin-mag   (* 10/9 lin-mag)
-        ;lin-mag   (pow 10.0 (/ (log10 lin-mag) 3.322))
+
+
+
+       ;lin-mag   (pow 10.0 (/ (log10 lin-mag) 3.322))
 
         ;lin-mag   (buf-rd 1 fft-buf indexer 1 1)
         ;s0        (* 0.00285 s0)

@@ -75,15 +75,17 @@
 ;;
 ;; http://www.physik.uni-wuerzburg.de/~praktiku/Anleitung/Fremde/ANO14.pdf
 (defsynth bus-freqs->buf
-  [in-bus 0 scope-buf 1 fft-buf-size FFT-BUF-SIZE-2X rate 2]
+  [in-bus 0 scope-buf 1 fft-buf-size FFT-BUF-SIZE rate 1]
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
-        ;; drop DC & nyquist samples
+        ;; drop DC & nyquist samples, inverse and the upper half of the freqs
         n-samples (* 0.25 (- (buf-samples:ir fft-buf) 2))
         signal    (in in-bus 1)
         ;; found 0.5 window gave less periodic noise
         chain     (fft fft-buf signal 0.5 HANN)
-        chain     (pv-mag-smear chain 7)
+        ;chain     (pv-mag-above chain 0.005)
+        chain     (pv-mag-smear chain 2)
+        ;chain     (pv-mag-above chain 0.005)
         ;; indexer = 2, 4, 6, ..., N-4, N-2
         indexer   (+ n-samples 2
                      (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
@@ -92,14 +94,21 @@
         ;; convert real,imag pairs to magnitude
 
         s0        (buf-rd 1 fft-buf indexer 1 1)
-        s0 (* 0.03 s0)
+        s0 (/ s0 480)
+        ;s0 (/ s0 512)
         lin-mag s0
 ;        s0        (* 0.285 s0)
 ;        s0        (+ 0 (* 0.02 (ampdb s0)))
-;        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
+        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
 ;        s1 (* 0.0285 s1)
-;        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))
+        s1 (/ s0 480)
+        ;s1 (/ s0 512)
+        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))
         lin-mag   (pow 10.0 (/ (log10 lin-mag) 3.322))
+        lin-mag   (sqrt lin-mag)
+        lin-mag   (- lin-mag 0.1)
+        lin-mag   (* 10/9 lin-mag)
+        ;lin-mag   (pow 10.0 (/ (log10 lin-mag) 3.322))
 
         ;lin-mag   (buf-rd 1 fft-buf indexer 1 1)
         ;s0        (* 0.00285 s0)

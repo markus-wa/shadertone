@@ -2,6 +2,8 @@
   (:require [overtone.live :as o]
             [shadertone.tone :as t]))
 
+(o/volume 1)
+
 (o/definst external [] (o/sound-in 0))
 
 (external)
@@ -12,6 +14,23 @@
          ;; this puts the FFT data in iChannel0 and a texture of the
          ;; previous frame in iChannel1
          :textures [:overtone-audio #_:previous-frame])
+
+
+
+
+(o/definst sn [n 1] (o/sin-osc (* n 5.4)))
+(sn 79)
+(sn 79)
+(sn 79)
+(sn 79)
+(sn 79)
+(sn 79)
+(sn 81)
+(sn )
+(sn 79)
+
+
+
 
 (t/start "examples/sound.glsl"
          :title "Shadertone Spectrograph"

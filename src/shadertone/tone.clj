@@ -25,7 +25,7 @@
 ;; ----------------------------------------------------------------------
 ;; Grab Waveform & FFT data and send it to the iChannel[0] texture.
 ;; data capture fns cribbed from overtone/gui/scope.clj
-(defonce WAVE-BUF-SIZE 4096) ; stick to powers of 2 for fft and GL
+(defonce WAVE-BUF-SIZE 2048 #_4096) ; stick to powers of 2 for fft and GL
 (defonce FFT-BUF-SIZE (* 1 WAVE-BUF-SIZE)) ; stick to powers of 2 for fft and GL
 (defonce WAVE-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
 (defonce FFT-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
@@ -75,7 +75,7 @@
 ;;
 ;; http://www.physik.uni-wuerzburg.de/~praktiku/Anleitung/Fremde/ANO14.pdf
 (defsynth bus-freqs->buf
-  [in-bus 0 scope-buf 1 fft-buf-size FFT-BUF-SIZE rate 1]
+  [in-bus 0 scope-buf 1 fft-buf-size (* 4 FFT-BUF-SIZE) rate 1 rate2 4]; lowering rate2 makes it wobbly / display multiple "screens"
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
 
@@ -84,12 +84,12 @@
         signal    (in in-bus 1)
 
         ;; found 0.5 window gave less periodic noise
-        chain     (fft fft-buf signal 0.5 HANN)
-        chain     (pv-mag-smear chain 2)
+        chain     (fft fft-buf signal 0.1 HANN)
+        chain     (pv-mag-smear chain 4)
 
         ;; indexer = 2, 4, 6, ..., N-4, N-2
         indexer   (+ n-samples 2
-                     (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
+                     (* (lf-saw (/ rate2 (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
                         n-samples))
         indexer   (round indexer 2) ;; always point to the real sample
 
@@ -101,13 +101,13 @@
         ;lin-mag    (sqrt (+ (* s0 s0) (* s1 s1)))
 
         lin-mag    (abs s0)
-        lin-mag   (/ lin-mag 128)
+        lin-mag    (/ lin-mag 64)
         ;lin-mag   (/ lin-mag 400)
         ;lin-mag    (/ lin-mag 512)
         ;lin-mag    (pow 10.0 (log10 lin-mag))
-        lin-mag    (pow 10.0 (/ (log10 lin-mag) (* 4 3.322)))
+        lin-mag    (pow 10.0 (/ (log10 lin-mag) (* 2 3.322)))
         ;lin-mag    (sqrt lin-mag)
-        lin-mag    (* 10/5 (- lin-mag 0.5))
+        lin-mag    (* 10/7 (- lin-mag 0.3))
         ;lin-mag    (pow 10.0 (/ (log10 lin-mag) 3.322))
         ;lin-mag    (* lin-mag 2)
 
@@ -175,10 +175,12 @@
     :pre-draw ;; grab the data and put it in the texture for drawing.
     (do
       (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
-        (-> ^FloatBuffer fftwave-float-buf
-            (.put ^floats (buffer-data fft-buf))
-            (.put ^floats (buffer-data wave-buf))
-            (.flip)))
+        (let [fft (buffer-data fft-buf)]
+          (println (take 10 fft))
+          (-> ^FloatBuffer fftwave-float-buf
+              (.put ^floats fft)
+              (.put ^floats (buffer-data wave-buf))
+              (.flip))))
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D @fftwave-tex-id)
       (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 ARBTextureRg/GL_R32F

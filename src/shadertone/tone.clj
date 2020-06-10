@@ -25,7 +25,7 @@
 ;; ----------------------------------------------------------------------
 ;; Grab Waveform & FFT data and send it to the iChannel[0] texture.
 ;; data capture fns cribbed from overtone/gui/scope.clj
-(defonce WAVE-BUF-SIZE 2048 #_4096) ; stick to powers of 2 for fft and GL
+(defonce WAVE-BUF-SIZE 1024 #_2048 #_4096) ; stick to powers of 2 for fft and GL
 (defonce FFT-BUF-SIZE (* 1 WAVE-BUF-SIZE)) ; stick to powers of 2 for fft and GL
 (defonce WAVE-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
 (defonce FFT-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
@@ -75,22 +75,22 @@
 ;;
 ;; http://www.physik.uni-wuerzburg.de/~praktiku/Anleitung/Fremde/ANO14.pdf
 (defsynth bus-freqs->buf
-  [in-bus 0 scope-buf 1 fft-buf-size (* 4 FFT-BUF-SIZE) rate 1 rate2 4]; lowering rate2 makes it wobbly / display multiple "screens"
+  [in-bus 0 scope-buf 1 fft-buf-size (* 8 FFT-BUF-SIZE) rate 2 rate2 8]; lowering rate2 makes it wobbly / display multiple "screens"
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
 
         ;; drop DC & nyquist samples, inverse and the upper half of the freqs
-        n-samples (* 0.25 (- (buf-samples:ir fft-buf) 2))
+        n-samples (* (* 1 0.125) (- (buf-samples:ir fft-buf) 2))
         signal    (in in-bus 1)
 
         ;; found 0.5 window gave less periodic noise
-        chain     (fft fft-buf signal 0.1 HANN)
-        chain     (pv-mag-smear chain 4)
+        chain     (fft fft-buf signal 0.01 HANN)
+        chain     (pv-mag-smear chain 2)
 
         ;; indexer = 2, 4, 6, ..., N-4, N-2
-        indexer   (+ n-samples 2
+        indexer   (+ (* 2 n-samples) 2
                      (* (lf-saw (/ rate2 (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
-                        n-samples))
+                        (* 2 n-samples)))
         indexer   (round indexer 2) ;; always point to the real sample
 
         ;; convert real,imag pairs to magnitude
@@ -101,7 +101,7 @@
         ;lin-mag    (sqrt (+ (* s0 s0) (* s1 s1)))
 
         lin-mag    (abs s0)
-        lin-mag    (/ lin-mag 64)
+        lin-mag    (/ lin-mag 32)
         ;lin-mag   (/ lin-mag 400)
         ;lin-mag    (/ lin-mag 512)
         ;lin-mag    (pow 10.0 (log10 lin-mag))
@@ -176,7 +176,7 @@
     (do
       (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
         (let [fft (buffer-data fft-buf)]
-          (println (take 10 fft))
+          ;(println (take 10 fft))
           (-> ^FloatBuffer fftwave-float-buf
               (.put ^floats fft)
               (.put ^floats (buffer-data wave-buf))

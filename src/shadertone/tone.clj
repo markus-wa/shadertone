@@ -147,6 +147,13 @@
 
 (afft (into-array Double/TYPE [0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1]))
 
+(defn- shadertoyify-wav
+  [wav]
+  (->> wav
+       (map #(+ 0.5 (/ % 2)))
+       ;(map #(abs ^float %))
+       (into-array Float/TYPE)))
+
 ;; user-fn for shader display of waveform and fft
 (defn tone-fftwave-fn
   "The shader display will call this routine on every draw.  Update
@@ -176,11 +183,14 @@
     :pre-draw ;; grab the data and put it in the texture for drawing.
     (do
       (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
-        (let [fft (buffer-data fft-buf)]
+        (let [fft (buffer-data fft-buf)
+              wav (buffer-data wave-buf)
+              wav (shadertoyify-wav wav)
+              ]
           ;(println (take 10 fft))
           (-> ^FloatBuffer fftwave-float-buf
               (.put ^floats fft)
-              (.put ^floats (buffer-data wave-buf))
+              (.put ^floats wav)
               (.flip))))
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D @fftwave-tex-id)

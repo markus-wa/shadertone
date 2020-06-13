@@ -101,13 +101,14 @@
         ;lin-mag    (sqrt (+ (* s0 s0) (* s1 s1)))
 
         lin-mag    (abs s0)
-        lin-mag    (/ lin-mag 32)
+        lin-mag    (/ lin-mag 128)
         ;lin-mag   (/ lin-mag 400)
         ;lin-mag    (/ lin-mag 512)
         ;lin-mag    (pow 10.0 (log10 lin-mag))
         lin-mag    (pow 10.0 (/ (log10 lin-mag) (* 2 3.322)))
         ;lin-mag    (sqrt lin-mag)
         lin-mag    (* 10/7 (- lin-mag 0.3))
+        lin-mag    (max 0 lin-mag)
         ;lin-mag    (pow 10.0 (/ (log10 lin-mag) 3.322))
         ;lin-mag    (* lin-mag 2)
 
